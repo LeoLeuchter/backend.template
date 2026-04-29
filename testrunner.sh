@@ -52,6 +52,7 @@ start_api() {
     sleep 4
   else
     CONFIG_FILE=${CONFIG_FILE} ./venv/bin/uvicorn ${MODULE_NAME}.main:app --reload --reload-dir ${MODULE_NAME} >${API_LOG} 2>&1 &
+    ln -sf ${API_LOG} api.log
     pid=$!
     echo ${pid} >${API_PID_FILE}
     wait ${pid}
