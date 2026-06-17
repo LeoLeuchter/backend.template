@@ -25,7 +25,7 @@ Methods:
 class Config:
 
     DB_CONNECTION_STRING: str = "sqlite:///:memory:"
-    __instances: dict[str, Config] = {}
+    __instances: dict[str, "Config"] = {}
 
     KEY_CONNECTION_STRING: str = "connection_string"
     KEY_LOG_LEVEL: str = "log_level"
@@ -75,7 +75,7 @@ class Config:
         return self._log_level
 
     @classmethod
-    def get_instance(cls, file_name: str = "") -> Config:
+    def get_instance(cls, file_name: str = "") -> "Config":
         """
         Returns an instance of the Config class with the given file name. If no file name is provided,
         it will use the default connection string. If an instance already exists for the provided file
