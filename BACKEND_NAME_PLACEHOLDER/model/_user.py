@@ -1,6 +1,6 @@
 from typing import override
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ._base import Base
@@ -25,6 +25,7 @@ class User(Base):
     user_name: Mapped[str] = mapped_column(String(50), primary_key=True)
     entity_id: Mapped[int] = mapped_column(ForeignKey(column=Entity.id), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(256), nullable=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     entity: Mapped[Entity] = relationship()
 
