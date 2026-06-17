@@ -1,0 +1,7 @@
+uvicorn>=0.49.0
+fastapi>=0.137.1
+sqlalchemy>=2
+pydantic>=2
+python-jose>=3.5
+passlib[bcrypt]>=1.7
+psycopg2-binary>=2.9
