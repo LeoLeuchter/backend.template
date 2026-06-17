@@ -18,11 +18,13 @@ class UserBase(BaseModel):
         user_name (str): The username for the user.
         name (str): The full name of the user.
         password_hash (str): The hashed password of the user.
+        is_admin (bool): Whether the user is an admin.
     """
 
     user_name: str
     name: str
     password_hash: str
+    is_admin: bool = False
 
 
 class UserFull(UserBase):
@@ -32,6 +34,7 @@ class UserFull(UserBase):
 
     Attributes:
         id (int): The unique identifier for the user.
+        is_admin (bool): Whether the user is an admin.
     """
 
     id: int

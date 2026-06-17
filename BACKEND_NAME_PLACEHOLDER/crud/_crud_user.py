@@ -31,6 +31,7 @@ class CrudUsers(CrudEntity):
             change_user.password_hash = user.password_hash
             change_user.name = user.name
             change_user.user_name = user.user_name
+            change_user.is_admin = user.is_admin
             session.add(change_user)
             session.commit()
 
@@ -61,15 +62,16 @@ class CrudUsers(CrudEntity):
         Creates a new UserFull object in the database by saving a new User object and associating it with an EntityBase.
 
         Args:
-            new_user (UserBase): The new user to be created, containing user_name, password_hash, and name attributes.
+            new_user (UserBase): The new user to be created, containing user_name, password_hash, name, and is_admin attributes.
 
         Returns:
-            UserFull: A new UserFull object representing the newly created user, including user_name, name, password_hash, and id.
+            UserFull: A new UserFull object representing the newly created user.
         """
         with Session(bind=self._engine) as session:
             user = User()
             user.user_name = new_user.user_name
             user.password_hash = new_user.password_hash
+            user.is_admin = new_user.is_admin
 
             entity: Entity | None = None
             if existing_entity:
@@ -94,6 +96,7 @@ class CrudUsers(CrudEntity):
                     name=entity.name,
                     password_hash=user.password_hash,
                     id=user.entity_id,
+                    is_admin=user.is_admin,
                 )
                 return user_full
             except IntegrityError as exc:
@@ -135,6 +138,15 @@ class CrudUsers(CrudEntity):
                         name=orm_user.entity.name,
                         user_name=orm_user.user_name,
                         password_hash=orm_user.password_hash,
+                        is_admin=orm_user.is_admin,
                     )
                 )
             return full_users
+
+    def get_user_by_username(self, user_name: str):
+        with Session(bind=self._engine) as session:
+            stmt = select(User).where(User.user_name == user_name)
+            result = list(session.execute(stmt).scalars())
+            if len(result) != 1:
+                return None
+            return result[0]

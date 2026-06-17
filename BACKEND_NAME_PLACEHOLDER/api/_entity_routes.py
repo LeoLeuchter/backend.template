@@ -1,8 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 
 from ..config import get_logger
 from ..crud import Crud
-from ..schema import EntityBase, EntityFilter, EntityFull
+from ..schema import EntityBase, EntityFilter, EntityFull, UserFull
+from ..utils._auth import decode_access_token, oauth2_scheme
+from jose import JWTError
 
 log = get_logger()
 
@@ -11,93 +14,84 @@ def define_routes(app: FastAPI, crud: Crud) -> None:
     """Defines the routes for the application."""
     log.debug(f"Entities from crud in define entity routes {crud.get_entities()}")
 
+    async def get_current_admin(token: str = Depends(oauth2_scheme)) -> UserFull:
+        credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated or not an admin",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+        try:
+            payload = decode_access_token(token)
+            username: str | None = payload.get("sub")
+            if username is None:
+                raise credentials_exception
+        except JWTError:
+            raise credentials_exception
+
+        user = crud.get_user_by_username(username)
+        if user is None or not user.is_admin:
+            raise credentials_exception
+
+        return UserFull(
+            id=user.entity_id,
+            user_name=user.user_name,
+            name=user.entity.name,
+            password_hash=user.password_hash,
+            is_admin=user.is_admin,
+        )
+
     @app.get(path="/entity/", response_model=list[EntityFull])
-    async def get_entities(search_string: str | None = None) -> list[EntityFull]:
-        """
-        Retrieves a list of full entities based on the provided search string.
-        If no search string is provided, all entities are returned.
-
-        Args:
-            search_string (str, optional): The keyword to filter the entities by name or id. Defaults to None.
-
-        Returns:
-            list[EntityFull]: A list of full entities based on the given search string.
-        """
+    async def get_entities(
+        search_string: str | None = None, 
+        current_user: UserFull = Depends(get_current_admin)
+    ) -> list[EntityFull]:
+        """Retrieves entities (admin only)."""
         if search_string is not None:
             filter = EntityFilter(name=search_string, id=None)
         else:
             filter = EntityFilter(name=None, id=None)
-        log.debug(f"user crud {crud}")
         return crud.get_entities(filter)
 
-    assert get_entities
-
     @app.get(path="/entity/{id}/", response_model=EntityFull)
-    async def get_entity(id: int):
-        """Retrieves a single entity based on the provided ID.
-
-        If an entity with the given id is not found, raises an HTTPException with status 404 and message "No entity found for {id}"
-
-        Args:
-            id (int): The unique identifier of the entity to retrieve.
-
-        Returns:
-            Entity: The retrieved entity object.
-
-        Raises:
-            HTTPException: When no entity is found with the provided id, with status 404 and message "No entity found for {id}".
-        """
+    async def get_entity(
+        id: int,
+        current_user: UserFull = Depends(get_current_admin)
+    ):
+        """Retrieves a single entity (admin only)."""
         filter = EntityFilter(name=None, id=id)
         result = crud.get_entities(filter)
         if len(result) == 1:
             return result[0]
         raise HTTPException(404, f"No entity found for {id}")
 
-    assert get_entity
-
     @app.post(path="/entity/", response_model=EntityFull)
-    async def post_entity(entity: EntityBase) -> EntityFull:
-        """
-        Creates a new entity based on the provided entity base and returns the created entity's
-        response object.
-
-        Args:
-            entity (EntityBase): The entity to be created with required fields filled.
-
-        Returns:
-            EntityResponse: Response object containing details of the created entity.
-        """
+    async def post_entity(
+        entity: EntityBase,
+        current_user: UserFull = Depends(get_current_admin)
+    ) -> EntityFull:
+        """Creates a new entity (admin only)."""
         return crud.create_entity(entity)
 
-    assert post_entity
-
     @app.put(path="/entity/")
-    async def put_entity(entity: EntityFull):
-        """
-        Changes an entity based on the provided entity full
-
-        Args:
-            entity (EntityFull): The entity to be changed with required fields filled.
-
-        Returns:
-            None
-
-        Raises:
-            AttributeError on invalid values
-        """
+    async def put_entity(
+        entity: EntityFull,
+        current_user: UserFull = Depends(get_current_admin)
+    ):
+        """Updates an entity (admin only)."""
         try:
             crud.change_entity(entity)
         except AttributeError as e:
             log.error(f"ERROR: {e}")
             raise HTTPException(status_code=404, detail=str(e))
 
-    assert put_entity
-
     @app.delete("/entity/{id}/", response_model=None)
-    async def delete_entity(id: int):
+    async def delete_entity(
+        id: int,
+        current_user: UserFull = Depends(get_current_admin)
+    ):
+        """Deletes an entity (admin only)."""
         """
-        Deletes an entity with the given id.
-
         Args:
             id (int): The ID of the entity to be deleted.
 
